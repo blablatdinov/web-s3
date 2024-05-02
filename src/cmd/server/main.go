@@ -28,6 +28,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -85,4 +86,6 @@ func main() {
 	api.Post("/users/auth", handlers.UserAuthCtor(pgsql, os.Getenv("SECRET_KEY")).Handle)
 	api.Get("/files", handlers.FilesCtor(pgsql, s3svc).Handle)
 	log.Fatal(app.Listen(":8090"))
+	fmt.Println("Run server...")
+	http.ListenAndServe(":8090", nil)
 }
