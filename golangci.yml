@@ -1,0 +1,35 @@
+run:
+  skip-files: 
+    - ^vendor/
+    - ^_.*\.go$
+  enable:
+    - bugs
+    - comment
+    - complexity
+    - error
+    - format
+    - import
+    - metalinter
+    - module
+    - perfomance
+    - sql
+    - style
+    - test
+    - unused
+  disable:
+    - gochecknoglobals
+    - lll # disable long line linter
+    - gosec # for educational purposes; remove before flight
+    - errcheck # many false positives
+  linters-settings:
+    govet:
+      check-shadowing: true
+      check-shadowing-from-outer-scopes: true
+    misspell:
+      # Don't check URLs, emails, and file paths.
+      ignore:
+        - "http://[^\\s]+"
+        - "https://[^\\s]+"
+        - "/.+/[^\\s]+"
+    whitespace:
+      ignore: "id" # Ignore ID whitespace
