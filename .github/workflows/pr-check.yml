@@ -30,3 +30,8 @@ jobs:
 
     - name: Check formatting
       run: gofmt -l . && [ -z "$(gofmt -l .)" ]
+
+    - name: Run linters
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.58.0
+        golangci-lint run
