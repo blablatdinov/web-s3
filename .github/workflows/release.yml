@@ -38,8 +38,9 @@ jobs:
         id: tag_name
         run: |
           calculatedSha=$(git rev-parse --short ${{ github.sha }})
-          echo "::set-output name=short_sha::$calculatedSha"- name: Build Docker image
-      - uses: docker/build-push-action@v5
+          echo "::set-output name=short_sha::$calculatedSha"
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
@@ -64,7 +65,7 @@ jobs:
           echo "::set-output name=short_sha::$calculatedSha"
       - name: Update docker-compose file
         run: |
-          sed -i 's/image: "blablatdinov\/web-s3:latest"/image: "blablatdinov\/quranbot-admin:${{ steps.tag_name.outputs.short_sha }}"/' docker/docker-compose.prod.yml
+          sed -i 's/image: "blablatdinov\/web-s3:latest"/image: "blablatdinov\/web-s3:${{ steps.tag_name.outputs.short_sha }}"/' docker-compose.yml
           cat docker-compose.yml
       - name: Deploy with docker-compose on remote server
         run: |
