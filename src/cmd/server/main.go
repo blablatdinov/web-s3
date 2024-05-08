@@ -79,5 +79,7 @@ func main() {
 		Immutable: true,
 	})
 	app.Get("/health-check", healthCheck)
-	app.Listen(":8090")
+	if err := app.Listen(":8090"); err != nil {
+		fmt.Printf("Fail run server: %s", err)
+	}
 }
