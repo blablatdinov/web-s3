@@ -31,10 +31,6 @@ import (
 	"net/http"
 	"os"
 
-	"log"
-	"net/http"
-	"os"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -44,9 +40,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"github.com/redis/go-redis/v9"
-
-	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
 
