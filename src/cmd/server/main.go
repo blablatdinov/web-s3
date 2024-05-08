@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"log"
+	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
