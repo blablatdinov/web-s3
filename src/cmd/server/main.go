@@ -3,7 +3,18 @@ package main
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/gofiber/fiber"
 )
+
+func healthCheck(fiberContext *fiber.Ctx) error {
+	return fiberContext.JSON(fiber.Map{
+		"app":      true,
+		"postgres": true,
+		"redis":    true,
+		"s3":       true,
+	})
+}
 
 func hello(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "hello\n")
