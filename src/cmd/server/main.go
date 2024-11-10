@@ -95,5 +95,7 @@ func main() {
 	}
 	app := fiber.New()
 	app.Get("/health-check", handlers.HealthCheckCtor(pgsql, rdb, s3.NewFromConfig(awsCfg), ctx).Handle)
+	api := app.Group("/api/v1")
+	api.Post("/users/auth", handlers.UserAuthCtor(pgsql, os.Getenv("SECRET_KEY")).Handle)
 	log.Fatal(app.Listen(":8090"))
 }
