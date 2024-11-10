@@ -30,10 +30,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/blablatdinov/web-s3/src/handlers"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
@@ -45,16 +45,6 @@ import (
 type CustomEndpointResolver struct {
 	URL           string
 	SigningRegion string
-}
-
-func (e *CustomEndpointResolver) ResolveEndpoint(service, region string, options ...interface{}) (aws.Endpoint, error) {
-	if service == s3.ServiceID {
-		return aws.Endpoint{
-			URL:           e.URL,
-			SigningRegion: e.SigningRegion,
-		}, nil
-	}
-	return aws.Endpoint{}, fmt.Errorf("unknown endpoint requested")
 }
 
 func main() {
@@ -75,27 +65,24 @@ func main() {
 		Password: "",
 		DB:       0,
 	})
-	awsCfg, err := config.LoadDefaultConfig(
-		ctx,
-		config.WithRegion(os.Getenv("S3_REGION")),
-		config.WithEndpointResolverWithOptions(
-			&CustomEndpointResolver{
-				URL:           os.Getenv("S3_ENDPOINT"),
-				SigningRegion: os.Getenv("S3_REGION"),
-			},
-		),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+	region := os.Getenv("S3_REGION")
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: &region,
+		Credentials: credentials.NewStaticCredentials(
 			os.Getenv("S3_ACCESS_KEY"),
 			os.Getenv("S3_SECRET_KEY"),
 			"",
-		)),
-	)
+		),
+		Endpoint: aws.String(os.Getenv("S3_ENDPOINT")),
+	}))
+	s3svc := s3.New(sess)
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
 	app := fiber.New()
-	app.Get("/health-check", handlers.HealthCheckCtor(pgsql, rdb, s3.NewFromConfig(awsCfg), ctx).Handle)
+	app.Get("/health-check", handlers.HealthCheckCtor(pgsql, rdb, s3svc, ctx).Handle)
 	api := app.Group("/api/v1")
 	api.Post("/users/auth", handlers.UserAuthCtor(pgsql, os.Getenv("SECRET_KEY")).Handle)
+	api.Get("/files", handlers.FilesCtor(pgsql, s3svc).Handle)
 	log.Fatal(app.Listen(":8090"))
 }

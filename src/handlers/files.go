@@ -25,7 +25,6 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 package handlers
 
 import (
-	"context"
 	"log"
 	"os"
 
@@ -33,49 +32,41 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
-	"github.com/redis/go-redis/v9"
 )
 
-type HealthCheck struct {
+type Files struct {
 	pgsql *sqlx.DB
-	redis *redis.Client
 	s3cfg *s3.S3
-	ctx   context.Context
 }
 
-func HealthCheckCtor(
-	pgsql *sqlx.DB,
-	rdb *redis.Client,
-	s3cfg *s3.S3,
-	ctx context.Context,
-) Handler {
-	return HealthCheck{pgsql: pgsql, redis: rdb, ctx: ctx, s3cfg: s3cfg}
+func FilesCtor(pgsql *sqlx.DB, s3 *s3.S3) Handler {
+	return Files{pgsql, s3}
 }
 
-func (hndlr HealthCheck) Handle(fiberContext *fiber.Ctx) error {
-	app := true
-	postgres := false
-	redis := false
-	s3Avaliable := false
-	_, err := hndlr.pgsql.Exec("SELECT 1")
-	if err == nil {
-		postgres = true
+func (filesHandler Files) Handle(fiberContext *fiber.Ctx) error {
+	var files []string
+	var dirs []string
+	queries := fiberContext.Queries()
+	path, exist := queries["path"]
+	if !exist {
+		path = ""
 	}
-	_, err = hndlr.redis.Ping(hndlr.ctx).Result()
-	if err == nil {
-		redis = true
+	resp, err := filesHandler.s3cfg.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket:    aws.String(os.Getenv("S3_BUCKET")),
+		Prefix:    aws.String(path),
+		Delimiter: aws.String("/"),
+	})
+	if err != nil {
+		log.Fatalf("Failed to list objects: %s", err)
 	}
-	_, err = hndlr.s3cfg.HeadBucket(
-		&s3.HeadBucketInput{Bucket: aws.String(os.Getenv("S3_BUCKET"))},
-	)
-	log.Println(err)
-	if err == nil {
-		s3Avaliable = true
+	for _, item := range resp.Contents {
+		files = append(files, *item.Key)
+	}
+	for _, item := range resp.CommonPrefixes {
+		dirs = append(dirs, *item.Prefix)
 	}
 	return fiberContext.JSON(fiber.Map{
-		"app":      app,
-		"postgres": postgres,
-		"redis":    redis,
-		"s3":       s3Avaliable,
+		"files":       files,
+		"directories": dirs,
 	})
 }
