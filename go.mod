@@ -25,7 +25,7 @@ module github.com/blablatdinov/web-s3
 go 1.21.0
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.32.5
+	github.com/aws/aws-sdk-go-v2 v1.32.6
 	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
