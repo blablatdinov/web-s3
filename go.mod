@@ -27,7 +27,7 @@ go 1.23.0
 toolchain go1.24.5
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.37.0
+	github.com/aws/aws-sdk-go-v2 v1.37.1
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
