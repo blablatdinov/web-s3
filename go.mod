@@ -22,7 +22,7 @@
 
 module github.com/blablatdinov/web-s3
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.25.1
 
@@ -53,6 +53,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.57.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
-	golang.org/x/crypto v0.41.0
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/crypto v0.42.0
+	golang.org/x/sys v0.36.0 // indirect
 )
