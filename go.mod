@@ -32,7 +32,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
-	github.com/redis/go-redis/v9 v9.16.0
+	github.com/redis/go-redis/v9 v9.17.0
 )
 
 require github.com/jmespath/go-jmespath v0.4.0 // indirect
