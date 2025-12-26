@@ -36,6 +36,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/blablatdinov/web-s3/src/handlers"
+	"github.com/blablatdinov/web-s3/src/repo"
 	fiber "github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -111,7 +112,7 @@ func main() {
 	app.Get("/health-check", handlers.HealthCheckCtor(pgsql, rdb, s3svc, ctx).Handle)
 	api := app.Group("/api/v1")
 	api.Post("/users/auth", handlers.UserAuthCtor(pgsql, os.Getenv("SECRET_KEY")).Handle)
-	api.Get("/files", handlers.FilesCtor(pgsql, s3svc).Handle)
+	api.Get("/files", handlers.FilesCtor(pgsql, repo.S3FilesCtor(s3svc)).Handle)
 	fmt.Println("Run server...")
 	port := os.Getenv("PORT")
 	if port == "" {
