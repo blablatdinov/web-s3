@@ -102,10 +102,13 @@ func main() {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
 	endpoint := os.Getenv("S3_ENDPOINT")
+	var s3Options []func(*s3.Options)
 	if endpoint != "" {
-		cfg.BaseEndpoint = aws.String(endpoint)
+		s3Options = append(s3Options, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(endpoint)
+		})
 	}
-	s3svc := s3.NewFromConfig(cfg)
+	s3svc := s3.NewFromConfig(cfg, s3Options...)
 	app := fiber.New(fiber.Config{
 		Immutable: true,
 	})
