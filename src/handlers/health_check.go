@@ -30,15 +30,15 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/gofiber/fiber/v2"
+	fiber "github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/jmoiron/sqlx"
-	"github.com/redis/go-redis/v9"
+	redis "github.com/redis/go-redis/v9"
 )
 
 type HealthCheck struct {
 	pgsql *sqlx.DB
-	redis *redis.Client
+	rds   *redis.Client
 	s3cfg *s3.S3
 	ctx   context.Context
 }
@@ -49,13 +49,13 @@ func HealthCheckCtor(
 	s3cfg *s3.S3,
 	ctx context.Context,
 ) Handler {
-	return HealthCheck{pgsql: pgsql, redis: rdb, ctx: ctx, s3cfg: s3cfg}
+	return HealthCheck{pgsql: pgsql, rds: rdb, ctx: ctx, s3cfg: s3cfg}
 }
 
 func (hndlr HealthCheck) Handle(fiberContext *fiber.Ctx) error {
 	app := true
 	postgres := false
-	redis := false
+	redisAvailable := false
 	s3Avaliable := false
 	_, err := hndlr.pgsql.Exec("SELECT 1")
 	if err == nil {
@@ -63,9 +63,9 @@ func (hndlr HealthCheck) Handle(fiberContext *fiber.Ctx) error {
 	} else {
 		log.Warnf("Error on call postgres: \"%s\"", err)
 	}
-	_, err = hndlr.redis.Ping(hndlr.ctx).Result()
+	_, err = hndlr.rds.Ping(hndlr.ctx).Result()
 	if err == nil {
-		redis = true
+		redisAvailable = true
 	} else {
 		log.Warnf("Error on call redis: \"%s\"", err)
 	}
@@ -80,7 +80,7 @@ func (hndlr HealthCheck) Handle(fiberContext *fiber.Ctx) error {
 	return fiberContext.JSON(fiber.Map{
 		"app":      app,
 		"postgres": postgres,
-		"redis":    redis,
+		"redis":    redisAvailable,
 		"s3":       s3Avaliable,
 	})
 }
