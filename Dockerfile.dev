@@ -19,43 +19,17 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 # OR OTHER DEALINGS IN THE SOFTWARE.
----
-version: "3.8"
 
-services:
+FROM golang:1.25.0 AS build
 
-  web:
-    image: "blablatdinov/web-s3:latest"
-    build:
-      context: .
-      dockerfile: ./Dockerfile.dev
-    restart: always
-    env_file: .env
-    command: |
-      /usr/local/bin/server
-    ports:
-      - "8090:8090"
-    volumes:
-      - .:/app
-    depends_on:
-      - postgres
-      - redis
-      # TODO: local s3
+WORKDIR /app
 
-  postgres:
-    image: postgres:17
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: webs3
-    ports:
-      - "5478:5432"
-    volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /bin
+RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
-  redis:
-    image: redis:8
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./redis-data:/data
+COPY . /app
+COPY go.mod go.sum /app
+RUN go mod download
+
+RUN mkdir -p /usr/local/bin
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /usr/local/bin/server /app/src/cmd/server/main.go

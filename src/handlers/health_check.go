@@ -26,12 +26,12 @@ package handlers
 
 import (
 	"context"
-	"log"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 )
@@ -60,17 +60,22 @@ func (hndlr HealthCheck) Handle(fiberContext *fiber.Ctx) error {
 	_, err := hndlr.pgsql.Exec("SELECT 1")
 	if err == nil {
 		postgres = true
+	} else {
+		log.Warnf("Error on call postgres: \"%s\"", err)
 	}
 	_, err = hndlr.redis.Ping(hndlr.ctx).Result()
 	if err == nil {
 		redis = true
+	} else {
+		log.Warnf("Error on call redis: \"%s\"", err)
 	}
 	_, err = hndlr.s3cfg.HeadBucket(
 		&s3.HeadBucketInput{Bucket: aws.String(os.Getenv("S3_BUCKET"))},
 	)
-	log.Println(err)
 	if err == nil {
 		s3Avaliable = true
+	} else {
+		log.Warnf("Error on call s3: \"%s\"", err)
 	}
 	return fiberContext.JSON(fiber.Map{
 		"app":      app,

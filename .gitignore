@@ -220,3 +220,12 @@ tags
 
 # Binary files
 bin/
+
+# postgres docker compose volume
+postgres-data/
+
+# redis docker compose volume
+redis-data/
+
+# Deltaver cache
+.deltaver_cache/

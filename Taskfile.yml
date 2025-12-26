@@ -20,6 +20,8 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 # OR OTHER DEALINGS IN THE SOFTWARE.
 
+version: "3"
+
 vars:
   BINARY_NAME: web-s3
   BUILD_DIR: build
@@ -37,6 +39,10 @@ tasks:
   makemigrations:
     cmds:
       - migrate create -ext sql -dir migrations -seq users_table
+
+  migrate:
+    cmds:
+      - migrate -source file:///app/migrations -database postgres://admin:admin@postgres:5432/webs3?sslmode=disable up
 
   build:
     cmds:
@@ -88,13 +94,17 @@ tasks:
     cmds:
       - go fmt ./...
 
-  docker-build:
+  compose-build:
     cmds:
-      - docker build -t {{.BINARY_NAME}} .
+      - docker compose build
 
-  docker-run:
+  compose-run:
     cmds:
-      - docker run -p 8080:8080 {{.BINARY_NAME}}
+      - docker compose up -d
+
+  compose-bash:
+    cmds:
+      - docker compose run --service-ports web bash
 
   run-with-env:
     cmds:
