@@ -29,22 +29,41 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/blablatdinov/web-s3/src/handlers"
-	"github.com/gofiber/fiber/v2"
+	fiber "github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"github.com/redis/go-redis/v9"
+	redis "github.com/redis/go-redis/v9"
 )
 
-type CustomEndpointResolver struct {
-	URL           string
-	SigningRegion string
+func databaseDsn() string {
+	password := os.Getenv("PG_PASSWORD")
+	if password != "" {
+		return fmt.Sprintf(
+			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+			os.Getenv("PG_HOST"),
+			os.Getenv("PG_USER"),
+			os.Getenv("PG_PASSWORD"),
+			os.Getenv("PG_DBNAME"),
+			os.Getenv("PG_PORT"),
+		)
+	} else {
+		return fmt.Sprintf(
+			"host=%s user=%s dbname=%s port=%s sslmode=disable",
+			os.Getenv("PG_HOST"),
+			os.Getenv("PG_USER"),
+			os.Getenv("PG_DBNAME"),
+			os.Getenv("PG_PORT"),
+		)
+
+	}
 }
 
 func main() {
@@ -52,37 +71,49 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error loading .env file")
 	}
-	pgsql, err := sqlx.Connect("postgres", fmt.Sprintf("user=%s dbname=%s sslmode=disable",
-		os.Getenv("PG_USERNAME"),
-		os.Getenv("PG_DB_NAME"),
-	))
+	pgsql, err := sqlx.Connect("postgres", databaseDsn())
 	ctx := context.Background()
 	if err != nil {
 		log.Fatalf("Error connectiing to db: %s\n", err)
 	}
+	rdbIdx, err := strconv.Atoi(os.Getenv("REDIS_DB"))
+	if err != nil {
+		log.Fatalf("Invalid REDIS_DB val \"%s\" expected number", os.Getenv("REDIS_DB"))
+	}
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT")),
-		Password: "",
-		DB:       0,
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       rdbIdx,
 	})
 	region := os.Getenv("S3_REGION")
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: &region,
-		Credentials: credentials.NewStaticCredentials(
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			os.Getenv("S3_ACCESS_KEY"),
 			os.Getenv("S3_SECRET_KEY"),
 			"",
-		),
-		Endpoint: aws.String(os.Getenv("S3_ENDPOINT")),
-	}))
-	s3svc := s3.New(sess)
+		)),
+	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
-	app := fiber.New()
+	endpoint := os.Getenv("S3_ENDPOINT")
+	var s3Options []func(*s3.Options)
+	if endpoint != "" {
+		s3Options = append(s3Options, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(endpoint)
+		})
+	}
+	s3svc := s3.NewFromConfig(cfg, s3Options...)
+	app := fiber.New(fiber.Config{
+		Immutable: true,
+	})
 	app.Get("/health-check", handlers.HealthCheckCtor(pgsql, rdb, s3svc, ctx).Handle)
 	api := app.Group("/api/v1")
 	api.Post("/users/auth", handlers.UserAuthCtor(pgsql, os.Getenv("SECRET_KEY")).Handle)
 	api.Get("/files", handlers.FilesCtor(pgsql, s3svc).Handle)
-	log.Fatal(app.Listen(":8090"))
+	fmt.Println("Run server...")
+	if err := app.Listen("0.0.0.0:8090"); err != nil {
+		fmt.Printf("Fail run server: %s", err)
+	}
 }

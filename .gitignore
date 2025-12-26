@@ -1,5 +1,5 @@
-# Created by https://www.toptal.com/developers/gitignore/api/go,python
-# Edit at https://www.toptal.com/developers/gitignore?templates=go,python
+# Created by https://www.toptal.com/developers/gitignore/api/go,vim,python
+# Edit at https://www.toptal.com/developers/gitignore?templates=go,vim,python
 
 ### Go ###
 # If you prefer the allow list template instead of the deny list, see community template:
@@ -195,4 +195,37 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
-# End of https://www.toptal.com/developers/gitignore/api/go,python
+### Vim ###
+# Swap
+[._]*.s[a-v][a-z]
+!*.svg  # comment out if you don't need vector files
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+
+# Session
+Session.vim
+Sessionx.vim
+
+# Temporary
+.netrwhist
+*~
+# Auto-generated tag files
+tags
+# Persistent undo
+[._]*.un~
+
+# End of https://www.toptal.com/developers/gitignore/api/go,vim,python
+
+# Binary files
+bin/
+
+# postgres docker compose volume
+postgres-data/
+
+# redis docker compose volume
+redis-data/
+
+# Deltaver cache
+.deltaver_cache/

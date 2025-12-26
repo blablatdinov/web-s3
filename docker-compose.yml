@@ -19,13 +19,43 @@
 # DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 # OR OTHER DEALINGS IN THE SOFTWARE.
+---
+version: "3.8"
 
-FROM golang:1.25.5-alpine AS build
+services:
 
-WORKDIR /src
-COPY src go.mod go.sum /src
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /bin/server /src/cmd/server/main.go
+  web:
+    image: "blablatdinov/web-s3:latest"
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    restart: always
+    env_file: .env
+    command: |
+      /usr/local/bin/server
+    ports:
+      - "8090:8090"
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+      - redis
+      # TODO: local s3
 
-FROM scratch
-COPY --from=build /bin/server /bin/server
-ENTRYPOINT ["/bin/server"]
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: webs3
+    ports:
+      - "5478:5432"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:8
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis-data:/data

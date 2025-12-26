@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/blablatdinov/web-s3/src/srv"
-	"github.com/gofiber/fiber/v2"
+	fiber "github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
 	"github.com/jmoiron/sqlx"
 )

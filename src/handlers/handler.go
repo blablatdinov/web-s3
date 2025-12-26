@@ -24,7 +24,7 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 
 package handlers
 
-import "github.com/gofiber/fiber/v2"
+import fiber "github.com/gofiber/fiber/v2"
 
 type Handler interface {
 	Handle(fiberContext *fiber.Ctx) error

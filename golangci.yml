@@ -1,0 +1,85 @@
+# The MIT License (MIT).
+#
+# Copyright (c) 2024-2025 Almaz Ilaletdinov <a.ilaletdinov@yandex.ru>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+# OR OTHER DEALINGS IN THE SOFTWARE.
+---
+version: "2"
+linters:
+  default: all
+  settings:
+    depguard:
+      rules:
+        main:
+          allow:
+            - $gostd
+            - github.com/blablatdinov/gotemir
+            - github.com/urfave/cli/v3
+            - gopkg.in/yaml.v3
+    godox:
+      keywords:
+        - FIXME
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Work via interface only
+      # https://www.yegor256.com/2014/11/20/seven-virtues-of-good-object.html#2-he-works-by-contracts
+      - path: (.+)\.go$
+        text: returns interface
+      # Empty line in function is smell
+      # https://www.yegor256.com/2014/11/03/empty-line-code-smell.html
+      - path: (.+)\.go$
+        text: return with no blank line before
+      - path: (.+)\.go$
+        text: break with no blank line before
+      - path: (.+)\.go$
+        text: only one cuddle assignment allowed before range statement
+      - path: (.+)\.go$
+        text: return statements should not be cuddled if block has more than two lines
+      - path: (.+)\.go$
+        text: Assignments should only be cuddled with other assignments
+      - path: (.+)\.go$
+        text: only one cuddle assignment allowed before if statement
+      - path: (.+)\.go$
+        text: if statements should only be cuddled with assignments
+      - path: (.+)\.go$
+        text: ranges should only be cuddled with assignments used in the iteration
+      - path: (.+)\.go$
+        text: assignments should only be cuddled with other assignments
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
