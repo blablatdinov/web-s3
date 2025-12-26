@@ -25,50 +25,29 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 package handlers
 
 import (
-	"context"
-	"log"
-	"os"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/blablatdinov/web-s3/src/repo"
 	fiber "github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
 )
 
-type Files struct {
+type FilesHandler struct {
 	pgsql *sqlx.DB
-	s3cfg *s3.Client
+	files repo.Files
 }
 
-func FilesCtor(pgsql *sqlx.DB, s3Client *s3.Client) Handler {
-	return Files{pgsql, s3Client}
+func FilesCtor(pgsql *sqlx.DB, files repo.Files) Handler {
+	return FilesHandler{pgsql, files}
 }
 
-func (filesHandler Files) Handle(fiberContext *fiber.Ctx) error {
-	var files []string
-	var dirs []string
+func (filesHandler FilesHandler) Handle(fiberContext *fiber.Ctx) error {
 	queries := fiberContext.Queries()
 	path, exist := queries["path"]
 	if !exist {
 		path = ""
 	}
-	ctx := context.Background()
-	resp, err := filesHandler.s3cfg.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
-		Bucket:    aws.String(os.Getenv("S3_BUCKET")),
-		Prefix:    aws.String(path),
-		Delimiter: aws.String("/"),
-	})
-	if err != nil {
-		log.Fatalf("Failed to list objects: %s", err)
-	}
-	for _, item := range resp.Contents {
-		files = append(files, *item.Key)
-	}
-	for _, item := range resp.CommonPrefixes {
-		dirs = append(dirs, *item.Prefix)
-	}
+	dto := filesHandler.files.List(path)
 	return fiberContext.JSON(fiber.Map{
-		"files":       files,
-		"directories": dirs,
+		"files":       dto.Files,
+		"directories": dto.Dirs,
 	})
 }
