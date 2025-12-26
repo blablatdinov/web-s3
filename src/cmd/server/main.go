@@ -43,10 +43,6 @@ import (
 	redis "github.com/redis/go-redis/v9"
 )
 
-var db *sqlx.DB
-var rdb *redis.Client
-var ctx = context.Background()
-
 func databaseDsn() string {
 	password := os.Getenv("PG_PASSWORD")
 	if password != "" {
