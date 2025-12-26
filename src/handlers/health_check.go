@@ -29,7 +29,7 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	fiber "github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/jmoiron/sqlx"
@@ -39,14 +39,14 @@ import (
 type HealthCheck struct {
 	pgsql *sqlx.DB
 	rds   *redis.Client
-	s3cfg *s3.S3
+	s3cfg *s3.Client
 	ctx   context.Context
 }
 
 func HealthCheckCtor(
 	pgsql *sqlx.DB,
 	rdb *redis.Client,
-	s3cfg *s3.S3,
+	s3cfg *s3.Client,
 	ctx context.Context,
 ) Handler {
 	return HealthCheck{pgsql: pgsql, rds: rdb, ctx: ctx, s3cfg: s3cfg}
@@ -70,6 +70,7 @@ func (hndlr HealthCheck) Handle(fiberContext *fiber.Ctx) error {
 		log.Warnf("Error on call redis: \"%s\"", err)
 	}
 	_, err = hndlr.s3cfg.HeadBucket(
+		hndlr.ctx,
 		&s3.HeadBucketInput{Bucket: aws.String(os.Getenv("S3_BUCKET"))},
 	)
 	if err == nil {

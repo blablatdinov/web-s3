@@ -25,22 +25,23 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 package handlers
 
 import (
+	"context"
 	"log"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	fiber "github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
 )
 
 type Files struct {
 	pgsql *sqlx.DB
-	s3cfg *s3.S3
+	s3cfg *s3.Client
 }
 
-func FilesCtor(pgsql *sqlx.DB, s3 *s3.S3) Handler {
-	return Files{pgsql, s3}
+func FilesCtor(pgsql *sqlx.DB, s3Client *s3.Client) Handler {
+	return Files{pgsql, s3Client}
 }
 
 func (filesHandler Files) Handle(fiberContext *fiber.Ctx) error {
@@ -51,7 +52,8 @@ func (filesHandler Files) Handle(fiberContext *fiber.Ctx) error {
 	if !exist {
 		path = ""
 	}
-	resp, err := filesHandler.s3cfg.ListObjectsV2(&s3.ListObjectsV2Input{
+	ctx := context.Background()
+	resp, err := filesHandler.s3cfg.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
 		Bucket:    aws.String(os.Getenv("S3_BUCKET")),
 		Prefix:    aws.String(path),
 		Delimiter: aws.String("/"),

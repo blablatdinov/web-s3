@@ -31,10 +31,10 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/blablatdinov/web-s3/src/handlers"
 	fiber "github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
@@ -90,18 +90,22 @@ func main() {
 		DB:       rdbIdx,
 	})
 	region := os.Getenv("S3_REGION")
-	s3svc := s3.New(session.Must(session.NewSession(&aws.Config{
-		Region: &region,
-		Credentials: credentials.NewStaticCredentials(
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			os.Getenv("S3_ACCESS_KEY"),
 			os.Getenv("S3_SECRET_KEY"),
 			"",
-		),
-		Endpoint: aws.String(os.Getenv("S3_ENDPOINT")),
-	})))
+		)),
+	)
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
+	endpoint := os.Getenv("S3_ENDPOINT")
+	if endpoint != "" {
+		cfg.BaseEndpoint = aws.String(endpoint)
+	}
+	s3svc := s3.NewFromConfig(cfg)
 	app := fiber.New(fiber.Config{
 		Immutable: true,
 	})
