@@ -26,25 +26,20 @@ package handlers
 
 import (
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/blablatdinov/web-s3/src/srv"
 	fiber "github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt"
-	"github.com/jmoiron/sqlx"
 )
 
-type UserAuth struct {
-	pgsql     *sqlx.DB
-	secretKey string
+type UserAuthHandler struct {
+	userAuthSrv srv.UserAuthSrv
 }
 
-func UserAuthCtor(pgsql *sqlx.DB, secretKey string) Handler {
-	return UserAuth{pgsql, secretKey}
+func UserAuthCtor(u srv.UserAuthSrv) Handler {
+	return UserAuthHandler{u}
 }
 
-func (userAuth UserAuth) Handle(fiberContext *fiber.Ctx) error {
+func (userAuth UserAuthHandler) Handle(fiberContext *fiber.Ctx) error {
 	body := struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -53,47 +48,7 @@ func (userAuth UserAuth) Handle(fiberContext *fiber.Ctx) error {
 	if err != nil {
 		fmt.Printf("Error parsing body. Err=%s\n", err)
 	}
-	userId := 0
-	if err != nil {
-		return fiberContext.Status(fiber.StatusInternalServerError).SendString(
-			fmt.Sprintf("Error on hash password: '%s'", err),
-		)
-	}
-	user := struct {
-		UserId       int    `db:"user_id"`
-		PasswordHash string `db:"password_hash"`
-	}{}
-	err = userAuth.pgsql.Get(
-		&user,
-		strings.Join([]string{
-			"SELECT user_id, password_hash FROM users",
-			"WHERE username=$1",
-		}, "\n"),
-		body.Username,
-	)
-	if err != nil && err.Error() != "sql: no rows in result set" {
-		return fiberContext.Status(fiber.StatusInternalServerError).SendString(
-			fmt.Sprintf("Error sql: '%s'", err),
-		)
-	}
-	if user.UserId == 0 {
-		return fiberContext.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
-			"details": fmt.Sprintf("User with username '%s' not found", body.Username),
-		})
-	}
-	passValid := srv.CheckPasswordHash(body.Password, user.PasswordHash)
-	if !passValid {
-		return fiberContext.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
-			"details": "Invalid password",
-		})
-	}
-	claims := jwt.MapClaims{
-		"user_id":  userId,
-		"username": body.Username,
-		"exp":      time.Now().Add(time.Hour * 72).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	t, err := token.SignedString([]byte(userAuth.secretKey))
+	t, err := userAuth.userAuthSrv.Jwt(body.Username, body.Password)
 	if err != nil {
 		return fiberContext.Status(fiber.StatusInternalServerError).SendString(
 			fmt.Sprintf("Error generate jwt token: '%s'", err),
