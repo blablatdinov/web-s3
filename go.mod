@@ -22,7 +22,7 @@
 
 module github.com/blablatdinov/web-s3
 
-go 1.24.0
+go 1.23.0
 
 toolchain go1.25.5
 
@@ -35,11 +35,7 @@ require (
 	github.com/redis/go-redis/v9 v9.17.2
 )
 
-require (
-	github.com/golang-migrate/migrate v3.5.4+incompatible // indirect
-	github.com/golang-migrate/migrate/v4 v4.19.1 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
-)
+require github.com/jmespath/go-jmespath v0.4.0 // indirect
 
 require (
 	github.com/andybalholm/brotli v1.1.1 // indirect
