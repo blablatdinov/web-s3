@@ -229,3 +229,5 @@ redis-data/
 
 # Deltaver cache
 .deltaver_cache/
+
+.task

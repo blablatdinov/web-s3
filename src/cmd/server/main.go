@@ -113,7 +113,11 @@ func main() {
 	api.Post("/users/auth", handlers.UserAuthCtor(pgsql, os.Getenv("SECRET_KEY")).Handle)
 	api.Get("/files", handlers.FilesCtor(pgsql, s3svc).Handle)
 	fmt.Println("Run server...")
-	if err := app.Listen("0.0.0.0:8090"); err != nil {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	if err := app.Listen(fmt.Sprintf("0.0.0.0:%s", port)); err != nil {
 		fmt.Printf("Fail run server: %s", err)
 	}
 }
