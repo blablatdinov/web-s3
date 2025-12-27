@@ -25,10 +25,16 @@ func UserAuthSrvCtor(secretKey string, repo repo.UserAuthRepo) UserAuthSrv {
 
 func (u UserAuthSrv) Jwt(Username, Password string) (string, error) {
 	userId, err := u.repo.UserId(Username)
+	if err != nil {
+		return "", err
+	}
 	passwordHash, err := u.repo.PasswordHash(Username)
+	if err != nil {
+		return "", err
+	}
 	passValid := PswrdCtor(Password).Check(passwordHash)
 	if !passValid {
-		return "", errors.New("Invalid password")
+		return "", errors.New("invalid password")
 	}
 	claims := jwt.MapClaims{
 		"user_id":  userId,
@@ -38,7 +44,7 @@ func (u UserAuthSrv) Jwt(Username, Password string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	t, err := token.SignedString([]byte(u.secretKey))
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error generate jwt token: '%s'", err))
+		return "", fmt.Errorf("error generate jwt token: %w", err)
 	}
 	return t, nil
 }

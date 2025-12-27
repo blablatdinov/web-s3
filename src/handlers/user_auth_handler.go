@@ -25,8 +25,11 @@ OR OTHER DEALINGS IN THE SOFTWARE.
 package handlers
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/blablatdinov/web-s3/src/repo"
 	"github.com/blablatdinov/web-s3/src/srv"
 	fiber "github.com/gofiber/fiber/v2"
 )
@@ -50,11 +53,32 @@ func (userAuth UserAuthHandler) Handle(fiberContext *fiber.Ctx) error {
 	}
 	t, err := userAuth.userAuthSrv.Jwt(body.Username, body.Password)
 	if err != nil {
-		return fiberContext.Status(fiber.StatusInternalServerError).SendString(
-			fmt.Sprintf("Error generate jwt token: '%s'", err),
-		)
+		return handleAuthError(fiberContext, err)
 	}
 	return fiberContext.JSON(fiber.Map{
 		"access": t,
+	})
+}
+
+func handleAuthError(fiberContext *fiber.Ctx, err error) error {
+	if errors.Is(err, repo.ErrUserNotFound) {
+		return fiberContext.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid username or password",
+		})
+	}
+	if strings.Contains(err.Error(), "Invalid password") {
+		return fiberContext.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid username or password",
+		})
+	}
+	if errors.Is(err, repo.ErrSQL) {
+		fmt.Printf("Database error: %s\n", err)
+		return fiberContext.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Internal server error",
+		})
+	}
+	fmt.Printf("Unexpected error: %s\n", err)
+	return fiberContext.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		"error": "Internal server error",
 	})
 }

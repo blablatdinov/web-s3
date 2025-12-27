@@ -1,11 +1,17 @@
 package repo
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+)
+
+var (
+	ErrUserNotFound = errors.New("user not found")
+	ErrSQL          = errors.New("sql error")
 )
 
 type UserAuthRepo interface {
@@ -31,11 +37,14 @@ func (repo PgUserAuthRepo) UserId(username string) (int, error) {
 		}, "\n"),
 		username,
 	)
-	if err != nil && err.Error() != "sql: no rows in result set" {
-		return 0, errors.New(fmt.Sprintf("Error sql: '%s'", err))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("%w: %s", ErrUserNotFound, username)
+		}
+		return 0, fmt.Errorf("%w: %s", ErrSQL, err)
 	}
 	if userId == 0 {
-		return 0, errors.New(fmt.Sprintf("User with username '%s' not found", username))
+		return 0, fmt.Errorf("%w: %s", ErrUserNotFound, username)
 	}
 	return userId, nil
 }
@@ -50,11 +59,14 @@ func (repo PgUserAuthRepo) PasswordHash(username string) (string, error) {
 		}, "\n"),
 		username,
 	)
-	if err != nil && err.Error() != "sql: no rows in result set" {
-		return "", errors.New(fmt.Sprintf("Error sql: '%s'", err))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("%w: %s", ErrUserNotFound, username)
+		}
+		return "", fmt.Errorf("%w: %s", ErrSQL, err)
 	}
 	if passwordHash == "" {
-		return "", errors.New(fmt.Sprintf("User with username '%s' not found", username))
+		return "", fmt.Errorf("%w: %s", ErrUserNotFound, username)
 	}
 	return passwordHash, nil
 }
