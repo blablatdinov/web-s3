@@ -23,5 +23,5 @@
 CREATE TABLE users (
     user_id serial,
     username varchar(128) unique not null,
-    password_hash varchar(128) unique not null
+    password_hash varchar(128) not null
 )

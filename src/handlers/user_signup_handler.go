@@ -30,7 +30,7 @@ func (h UserSingUpHandler) Handle(fiberContext *fiber.Ctx) error {
 	if body.Username == "" {
 		return fiberContext.Status(422).JSON(fiber.Map{"details": "Invalid username"})
 	}
-	hash, err := srv.HashPassword(body.Password)
+	hash, err := srv.PswrdCtor(body.Password).Hash()
 	if err != nil {
 		log.Error("Error hashing password")
 		return fiberContext.Status(500).JSON(fiber.Map{"details": "Error hashing password"})

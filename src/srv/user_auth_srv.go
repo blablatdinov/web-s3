@@ -11,6 +11,7 @@ import (
 
 type UserAuth interface {
 	Jwt() string
+	Validate(token string) (bool, error)
 }
 
 type UserAuthSrv struct {
@@ -25,7 +26,7 @@ func UserAuthSrvCtor(secretKey string, repo repo.UserAuthRepo) UserAuthSrv {
 func (u UserAuthSrv) Jwt(Username, Password string) (string, error) {
 	userId, err := u.repo.UserId(Username)
 	passwordHash, err := u.repo.PasswordHash(Username)
-	passValid := CheckPasswordHash(Password, passwordHash)
+	passValid := PswrdCtor(Password).Check(passwordHash)
 	if !passValid {
 		return "", errors.New("Invalid password")
 	}
@@ -40,4 +41,20 @@ func (u UserAuthSrv) Jwt(Username, Password string) (string, error) {
 		return "", errors.New(fmt.Sprintf("Error generate jwt token: '%s'", err))
 	}
 	return t, nil
+}
+
+func (u UserAuthSrv) Validate(token string) (bool, error) {
+	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(u.secretKey), nil
+	})
+	if err != nil {
+		return false, err
+	}
+	if !parsedToken.Valid {
+		return false, errors.New("token is not valid")
+	}
+	return true, nil
 }
