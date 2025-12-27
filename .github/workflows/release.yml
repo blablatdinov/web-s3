@@ -1,13 +1,8 @@
 name: Deploy
 
-# on:
-#   push:
-#     branches:
-#       - master
 on:
-  pull_request:
-    branches:
-      - master
+  push:
+    tags: "*"
 
 jobs:
   build-and-push:
