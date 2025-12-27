@@ -1,20 +1,20 @@
 package handlers
 
 import (
-	"strings"
+	"errors"
 
+	"github.com/blablatdinov/web-s3/src/repo"
 	"github.com/blablatdinov/web-s3/src/srv"
 	fiber "github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/jmoiron/sqlx"
 )
 
 type UserSingUpHandler struct {
-	pgsql *sqlx.DB
+	srv srv.UserSignupSrv
 }
 
-func UserSingUpCtor(pgsql *sqlx.DB) Handler {
-	return UserSingUpHandler{pgsql}
+func UserSingUpCtor(srv srv.UserSignupSrv) Handler {
+	return UserSingUpHandler{srv}
 }
 
 func (h UserSingUpHandler) Handle(fiberContext *fiber.Ctx) error {
@@ -30,26 +30,17 @@ func (h UserSingUpHandler) Handle(fiberContext *fiber.Ctx) error {
 	if body.Username == "" {
 		return fiberContext.Status(422).JSON(fiber.Map{"details": "Invalid username"})
 	}
-	hash, err := srv.PswrdCtor(body.Password).Hash()
+	userId, err := h.srv.Create(body.Username, body.Password)
 	if err != nil {
-		log.Error("Error hashing password")
-		return fiberContext.Status(500).JSON(fiber.Map{"details": "Error hashing password"})
-	}
-	var userId int
-	err = h.pgsql.QueryRow(
-		strings.Join([]string{
-			"INSERT INTO users (username, password_hash)",
-			"VALUES ($1, $2)",
-			"RETURNING user_id",
-		}, "\n"),
-		body.Username, hash,
-	).Scan(&userId)
-	if err != nil {
-		if err.Error() == "pq: duplicate key value violates unique constraint \"users_username_key\"" {
+		if errors.Is(err, srv.ErrorHashingPassword) {
+			log.Errorf("Error hashing password %s", err.Error())
+			return fiberContext.Status(500).JSON(fiber.Map{"details": "Error hashing password"})
+		} else if errors.Is(err, repo.ErrUsernameAlreadyExist) {
 			return fiberContext.Status(422).JSON(fiber.Map{"details": "Username already exists"})
+		} else if errors.Is(err, repo.ErrSQL) {
+			log.Error("Error exec sql query. Err=%s\n", err)
+			return fiberContext.Status(500).JSON(fiber.Map{"details": "Error exec sql query"})
 		}
-		log.Error("Error exec sql query. Err=%s\n", err)
-		return fiberContext.Status(500).JSON(fiber.Map{"details": "Error exec sql query"})
 	}
 	return fiberContext.JSON(fiber.Map{
 		"user_id":  userId,
