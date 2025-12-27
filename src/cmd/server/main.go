@@ -112,7 +112,11 @@ func main() {
 	})
 	app.Get("/health-check", handlers.HealthCheckCtor(pgsql, rdb, s3svc, ctx).Handle)
 	api := app.Group("/api/v1")
-	api.Post("/users/sign-up", handlers.UserSingUpCtor(pgsql).Handle)
+	api.Post("/users/sign-up", handlers.UserSingUpCtor(
+		srv.UsrSignupSrvCtor(
+			repo.PgUserSignupRepoCtor(pgsql),
+		),
+	).Handle)
 	api.Post("/users/auth", handlers.UserAuthCtor(
 		srv.UserAuthSrvCtor(
 			os.Getenv("SECRET_KEY"),

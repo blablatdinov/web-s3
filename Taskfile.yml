@@ -68,7 +68,7 @@ tasks:
 
   test:
     cmds:
-      - go test ./...
+      - go test ./... -test.v -race
 
   test-coverage:
     cmds:
