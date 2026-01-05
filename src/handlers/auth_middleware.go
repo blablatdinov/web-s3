@@ -53,4 +53,3 @@ func GetUsername(c *fiber.Ctx) (string, bool) {
 	username, ok := c.Locals(UsernameKey).(string)
 	return username, ok
 }
-
