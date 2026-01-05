@@ -20,8 +20,5 @@
 -- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 -- OR OTHER DEALINGS IN THE SOFTWARE.
 
-CREATE TABLE users (
-    user_id serial PRIMARY KEY,
-    username varchar(128) unique not null,
-    password_hash varchar(128) not null
-)
+DROP TABLE buckets
+

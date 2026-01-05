@@ -20,8 +20,18 @@
 -- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 -- OR OTHER DEALINGS IN THE SOFTWARE.
 
-CREATE TABLE users (
-    user_id serial PRIMARY KEY,
-    username varchar(128) unique not null,
-    password_hash varchar(128) not null
-)
+CREATE TABLE buckets (
+    bucket_id serial PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    bucket_name varchar(255) NOT NULL,
+    access_key_id varchar(255) NOT NULL,
+    secret_access_key varchar(255) NOT NULL,
+    region varchar(64) NOT NULL DEFAULT 'us-east-1',
+    endpoint varchar(512),
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, bucket_name)
+);
+
+CREATE INDEX idx_buckets_user_id ON buckets(user_id);
+
