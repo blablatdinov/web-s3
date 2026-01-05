@@ -50,7 +50,12 @@ func (h FileDownloadHandler) Handle(fiberContext *fiber.Ctx) error {
 			"error": "File not found",
 		})
 	}
-	defer result.Body.Close()
+	err = result.Body.Close()
+	if err != nil {
+		return fiberContext.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Body unclosed",
+		})
+	}
 	fileName := filepath.Base(filePath)
 	if fileName == "." || fileName == "/" {
 		fileName = "file"
