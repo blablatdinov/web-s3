@@ -42,7 +42,8 @@ tasks:
 
   migrate:
     cmds:
-      - migrate -source file:///app/migrations -database postgres://admin:admin@postgres:5432/webs3?sslmode=disable up
+      # - migrate -path=migrations file:///app/migrations -database postgres://admin:admin@postgres:5432/webs3?sslmode=disable up
+      - migrate -path=migrations -database postgres://almazilaletdinov@localhost:5432/web_s3?sslmode=disable up
 
   build:
     cmds:

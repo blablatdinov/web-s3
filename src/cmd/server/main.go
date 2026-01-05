@@ -39,6 +39,7 @@ import (
 	"github.com/blablatdinov/web-s3/src/repo"
 	"github.com/blablatdinov/web-s3/src/srv"
 	fiber "github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -110,6 +111,11 @@ func main() {
 	app := fiber.New(fiber.Config{
 		Immutable: true,
 	})
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+	}))
 	app.Get("/health-check", handlers.HealthCheckCtor(pgsql, rdb, s3svc, ctx).Handle)
 	api := app.Group("/api/v1")
 	api.Post("/users/sign-up", handlers.UserSingUpCtor(
@@ -123,7 +129,17 @@ func main() {
 			repo.PgUserAuthRepoCtor(pgsql),
 		),
 	).Handle)
-	api.Get("/files", handlers.FilesCtor(pgsql, repo.S3FilesCtor(s3svc)).Handle)
+	protected := api.Group(
+		"",
+		handlers.AuthMiddleware(
+			srv.UserAuthSrvCtor(
+				os.Getenv("SECRET_KEY"),
+				repo.PgUserAuthRepoCtor(pgsql),
+			),
+		),
+	)
+	protected.Get("/files", handlers.FilesCtor(pgsql, repo.S3FilesCtor(s3svc)).Handle)
+	protected.Get("/files/:path/download", handlers.FileDownloadHandlerCtor(s3svc).Handle)
 	fmt.Println("Run server...")
 	port := os.Getenv("PORT")
 	if port == "" {
