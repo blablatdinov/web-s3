@@ -31,10 +31,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/blablatdinov/web-s3/src/handlers"
 	"github.com/blablatdinov/web-s3/src/repo"
 	"github.com/blablatdinov/web-s3/src/srv"
@@ -88,26 +84,6 @@ func main() {
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       rdbIdx,
 	})
-	region := os.Getenv("S3_REGION")
-	cfg, err := config.LoadDefaultConfig(ctx,
-		config.WithRegion(region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			os.Getenv("S3_ACCESS_KEY"),
-			os.Getenv("S3_SECRET_KEY"),
-			"",
-		)),
-	)
-	if err != nil {
-		log.Fatalf("unable to load SDK config, %v", err)
-	}
-	endpoint := os.Getenv("S3_ENDPOINT")
-	var s3Options []func(*s3.Options)
-	if endpoint != "" {
-		s3Options = append(s3Options, func(o *s3.Options) {
-			o.BaseEndpoint = aws.String(endpoint)
-		})
-	}
-	s3svc := s3.NewFromConfig(cfg, s3Options...)
 	app := fiber.New(fiber.Config{
 		Immutable: true,
 	})
@@ -116,7 +92,7 @@ func main() {
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
 	}))
-	app.Get("/health-check", handlers.HealthCheckCtor(pgsql, rdb, s3svc, ctx).Handle)
+	app.Get("/health-check", handlers.HealthCheckCtor(pgsql, rdb, ctx).Handle)
 	api := app.Group("/api/v1")
 	api.Post("/users/sign-up", handlers.UserSingUpCtor(
 		srv.UsrSignupSrvCtor(
@@ -138,8 +114,12 @@ func main() {
 			),
 		),
 	)
-	protected.Get("/files", handlers.FilesCtor(pgsql, repo.S3FilesCtor(s3svc)).Handle)
-	protected.Get("/files/:path/download", handlers.FileDownloadHandlerCtor(s3svc).Handle)
+	bucketsRepo := repo.PgBucketsRepoCtor(pgsql)
+	protected.Get("/files", handlers.FilesCtor(pgsql, bucketsRepo).Handle)
+	protected.Get("/files/:path/download", handlers.FileDownloadHandlerCtor(bucketsRepo).Handle)
+	buckets := protected.Group("/buckets")
+	buckets.Get("/", handlers.BucketsListHandlerCtor(bucketsRepo).Handle)
+	buckets.Post("/", handlers.NewBucketHandlerCtor(bucketsRepo).Handle)
 	fmt.Println("Run server...")
 	port := os.Getenv("PORT")
 	if port == "" {

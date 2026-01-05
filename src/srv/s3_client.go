@@ -22,52 +22,37 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-package handlers
+package srv
 
 import (
 	"context"
 
-	fiber "github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
-	"github.com/jmoiron/sqlx"
-	redis "github.com/redis/go-redis/v9"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/blablatdinov/web-s3/src/repo"
 )
 
-type HealthCheck struct {
-	pgsql *sqlx.DB
-	rds   *redis.Client
-	ctx   context.Context
-}
-
-func HealthCheckCtor(
-	pgsql *sqlx.DB,
-	rdb *redis.Client,
-	ctx context.Context,
-) Handler {
-	return HealthCheck{pgsql: pgsql, rds: rdb, ctx: ctx}
-}
-
-func (hndlr HealthCheck) Handle(fiberContext *fiber.Ctx) error {
-	app := true
-	postgres := false
-	redisAvailable := false
-	s3Avaliable := false
-	_, err := hndlr.pgsql.Exec("SELECT 1")
-	if err == nil {
-		postgres = true
-	} else {
-		log.Warnf("Error on call postgres: \"%s\"", err)
+func CreateS3ClientFromBucket(ctx context.Context, bucket *repo.Bucket) (*s3.Client, error) {
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(bucket.Region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			bucket.AccessKeyID,
+			bucket.SecretAccessKey,
+			"",
+		)),
+	)
+	if err != nil {
+		return nil, err
 	}
-	_, err = hndlr.rds.Ping(hndlr.ctx).Result()
-	if err == nil {
-		redisAvailable = true
-	} else {
-		log.Warnf("Error on call redis: \"%s\"", err)
+
+	var s3Options []func(*s3.Options)
+	if bucket.Endpoint != nil && *bucket.Endpoint != "" {
+		s3Options = append(s3Options, func(o *s3.Options) {
+			o.BaseEndpoint = aws.String(*bucket.Endpoint)
+		})
 	}
-	return fiberContext.JSON(fiber.Map{
-		"app":      app,
-		"postgres": postgres,
-		"redis":    redisAvailable,
-		"s3":       s3Avaliable,
-	})
+
+	return s3.NewFromConfig(cfg, s3Options...), nil
 }

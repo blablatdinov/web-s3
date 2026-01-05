@@ -2,51 +2,92 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
-	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/blablatdinov/web-s3/src/repo"
+	"github.com/blablatdinov/web-s3/src/srv"
 	fiber "github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 )
 
 type FileDownloadHandler struct {
-	s3Client *s3.Client
+	bucketsRepo repo.BucketsRepo
 }
 
-func FileDownloadHandlerCtor(s3Client *s3.Client) Handler {
+func FileDownloadHandlerCtor(bucketsRepo repo.BucketsRepo) Handler {
 	return FileDownloadHandler{
-		s3Client: s3Client,
+		bucketsRepo: bucketsRepo,
 	}
 }
 
-func (h FileDownloadHandler) Handle(fiberContext *fiber.Ctx) error {
-	filePath := fiberContext.Params("path")
+func (h FileDownloadHandler) Handle(c *fiber.Ctx) error {
+	userID, ok := GetUserID(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "User ID not found in context",
+		})
+	}
+
+	filePath := c.Params("path")
 	if filePath == "" {
-		return fiberContext.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "File path is required",
 		})
 	}
 	filePath = strings.TrimPrefix(filePath, "/")
-	bucket := os.Getenv("S3_BUCKET")
-	if bucket == "" {
-		return fiberContext.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "S3 bucket is not configured",
+
+	queries := c.Queries()
+	bucketIDStr, exist := queries["bucket_id"]
+	if !exist {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "bucket_id is required",
 		})
 	}
+
+	bucketID, err := strconv.Atoi(bucketIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid bucket_id",
+		})
+	}
+
+	bucket, err := h.bucketsRepo.GetByID(userID, bucketID)
+	if err != nil {
+		if errors.Is(err, repo.ErrBucketNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Bucket not found",
+			})
+		}
+		log.Error("Error getting bucket. Err=%s\n", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error getting bucket",
+		})
+	}
+
 	ctx := context.Background()
-	result, err := h.s3Client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
+	s3Client, err := srv.CreateS3ClientFromBucket(ctx, bucket)
+	if err != nil {
+		log.Error("Error creating S3 client. Err=%s\n", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error creating S3 client",
+		})
+	}
+
+	result, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket.BucketName),
 		Key:    aws.String(filePath),
 	})
 	if err != nil {
 		log.Errorf("Error getting object from S3: %s", err)
-		return fiberContext.Status(fiber.StatusNotFound).JSON(fiber.Map{
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "File not found",
 		})
 	}
@@ -68,14 +109,14 @@ func (h FileDownloadHandler) Handle(fiberContext *fiber.Ctx) error {
 	if result.ContentType != nil && *result.ContentType != "" {
 		contentType = *result.ContentType
 	}
-	fiberContext.Set("Content-Type", contentType)
-	fiberContext.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileName))
+	c.Set("Content-Type", contentType)
+	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileName))
 	if result.ContentLength != nil {
-		fiberContext.Set("Content-Length", fmt.Sprintf("%d", *result.ContentLength))
+		c.Set("Content-Length", fmt.Sprintf("%d", *result.ContentLength))
 	}
-	_, err = io.Copy(fiberContext.Response().BodyWriter(), result.Body)
+	_, err = io.Copy(c.Response().BodyWriter(), result.Body)
 	if err != nil {
-		return fiberContext.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to stream file",
 		})
 	}

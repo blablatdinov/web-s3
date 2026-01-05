@@ -37,13 +37,25 @@ tasks:
       - "{{.BUILD_DIR}}/{{.BINARY_NAME}}"
 
   makemigrations:
+    desc: "Create a new migration. Usage: task makemigrations -- <migration_name>"
     cmds:
-      - migrate create -ext sql -dir migrations -seq users_table
+      - migrate create -ext sql -dir migrations -seq {{index .CLI_ARGS 0}}
 
   migrate:
+    dotenv: ['.env']
     cmds:
-      # - migrate -path=migrations file:///app/migrations -database postgres://admin:admin@postgres:5432/webs3?sslmode=disable up
-      - migrate -path=migrations -database postgres://almazilaletdinov@localhost:5432/web_s3?sslmode=disable up
+      - |
+        PG_HOST="${PG_HOST:-localhost}"
+        PG_USER="${PG_USER:-almazilaletdinov}"
+        PG_PASSWORD="${PG_PASSWORD:-}"
+        PG_DBNAME="${PG_DBNAME:-web_s3}"
+        PG_PORT="${PG_PORT:-5432}"
+        if [ -n "$PG_PASSWORD" ]; then
+          DATABASE_URL="postgres://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DBNAME}?sslmode=disable"
+        else
+          DATABASE_URL="postgres://${PG_USER}@${PG_HOST}:${PG_PORT}/${PG_DBNAME}?sslmode=disable"
+        fi
+        migrate -path=migrations -database "$DATABASE_URL" up
 
   build:
     cmds:
