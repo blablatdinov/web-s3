@@ -28,6 +28,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -90,6 +91,9 @@ func (h FilesHandler) Handle(c *fiber.Ctx) error {
 	path, exist := queries["path"]
 	if !exist {
 		path = ""
+	}
+	if path != "" && !strings.HasSuffix(path, "/") {
+		path += "/"
 	}
 	var files []string
 	var dirs []string
