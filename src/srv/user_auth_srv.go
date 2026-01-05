@@ -10,8 +10,9 @@ import (
 )
 
 type UserAuth interface {
-	Jwt() string
+	Jwt(string, string) (string, error)
 	Validate(token string) (bool, error)
+	ExtractClaims(token string) (jwt.MapClaims, error)
 }
 
 type UserAuthSrv struct {
@@ -19,7 +20,7 @@ type UserAuthSrv struct {
 	repo      repo.UserAuthRepo
 }
 
-func UserAuthSrvCtor(secretKey string, repo repo.UserAuthRepo) UserAuthSrv {
+func UserAuthSrvCtor(secretKey string, repo repo.UserAuthRepo) UserAuth {
 	return UserAuthSrv{secretKey, repo}
 }
 
@@ -63,4 +64,24 @@ func (u UserAuthSrv) Validate(token string) (bool, error) {
 		return false, errors.New("token is not valid")
 	}
 	return true, nil
+}
+
+func (u UserAuthSrv) ExtractClaims(token string) (jwt.MapClaims, error) {
+	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(u.secretKey), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !parsedToken.Valid {
+		return nil, errors.New("token is not valid")
+	}
+	claims, ok := parsedToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid token claims")
+	}
+	return claims, nil
 }

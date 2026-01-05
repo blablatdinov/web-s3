@@ -35,10 +35,10 @@ import (
 )
 
 type UserAuthHandler struct {
-	userAuthSrv srv.UserAuthSrv
+	userAuthSrv srv.UserAuth
 }
 
-func UserAuthCtor(u srv.UserAuthSrv) Handler {
+func UserAuthCtor(u srv.UserAuth) Handler {
 	return UserAuthHandler{u}
 }
 
