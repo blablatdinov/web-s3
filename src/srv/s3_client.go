@@ -56,4 +56,3 @@ func CreateS3ClientFromBucket(ctx context.Context, bucket *repo.Bucket) (*s3.Cli
 
 	return s3.NewFromConfig(cfg, s3Options...), nil
 }
-
