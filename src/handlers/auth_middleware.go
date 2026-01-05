@@ -14,20 +14,22 @@ const (
 
 func AuthMiddleware(userAuthSrv srv.UserAuth) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		var token string
 		authHeader := c.Get("Authorization")
-		if authHeader == "" {
+		if authHeader != "" {
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				token = parts[1]
+			}
+		}
+		if token == "" {
+			token = c.Query("token")
+		}
+		if token == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Authorization header is required",
+				"error": "Authorization header or token query parameter is required",
 			})
 		}
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid authorization header format. Expected: Bearer <token>",
-			})
-		}
-
-		token := parts[1]
 		claims, err := userAuthSrv.ExtractClaims(token)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

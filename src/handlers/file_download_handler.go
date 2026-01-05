@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,11 +21,13 @@ import (
 
 type FileDownloadHandler struct {
 	bucketsRepo repo.BucketsRepo
+	userAuthSrv srv.UserAuth
 }
 
-func FileDownloadHandlerCtor(bucketsRepo repo.BucketsRepo) Handler {
+func FileDownloadHandlerCtor(bucketsRepo repo.BucketsRepo, userAuthSrv srv.UserAuth) Handler {
 	return FileDownloadHandler{
 		bucketsRepo: bucketsRepo,
+		userAuthSrv: userAuthSrv,
 	}
 }
 
@@ -35,7 +38,6 @@ func (h FileDownloadHandler) Handle(c *fiber.Ctx) error {
 			"error": "User ID not found in context",
 		})
 	}
-
 	filePath := c.Params("path")
 	if filePath == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -43,7 +45,12 @@ func (h FileDownloadHandler) Handle(c *fiber.Ctx) error {
 		})
 	}
 	filePath = strings.TrimPrefix(filePath, "/")
-
+	decodedPath, err := url.PathUnescape(filePath)
+	if err != nil {
+		log.Warnf("Failed to decode URL-encoded path '%s': %s", filePath, err)
+	} else {
+		filePath = decodedPath
+	}
 	queries := c.Queries()
 	bucketIDStr, exist := queries["bucket_id"]
 	if !exist {
@@ -71,7 +78,6 @@ func (h FileDownloadHandler) Handle(c *fiber.Ctx) error {
 			"error": "Error getting bucket",
 		})
 	}
-
 	ctx := context.Background()
 	s3Client, err := srv.CreateS3ClientFromBucket(ctx, bucket)
 	if err != nil {
@@ -80,6 +86,7 @@ func (h FileDownloadHandler) Handle(c *fiber.Ctx) error {
 			"error": "Error creating S3 client",
 		})
 	}
+	fmt.Printf("%s %s\n", bucket.BucketName, filePath)
 
 	result, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(bucket.BucketName),
@@ -110,7 +117,10 @@ func (h FileDownloadHandler) Handle(c *fiber.Ctx) error {
 		contentType = *result.ContentType
 	}
 	c.Set("Content-Type", contentType)
-	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fileName))
+	// Правильно экранируем имя файла для заголовка Content-Disposition
+	// Используем RFC 5987 формат для поддержки Unicode символов
+	encodedFileName := url.QueryEscape(fileName)
+	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"; filename*=UTF-8''%s`, fileName, encodedFileName))
 	if result.ContentLength != nil {
 		c.Set("Content-Length", fmt.Sprintf("%d", *result.ContentLength))
 	}

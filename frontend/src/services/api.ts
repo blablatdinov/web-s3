@@ -19,6 +19,34 @@ export interface FilesResponse {
   directories: string[] | null
 }
 
+export interface Bucket {
+  bucket_id: number
+  user_id: number
+  bucket_name: string
+  access_key_id: string
+  region: string
+  endpoint: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface BucketsResponse {
+  buckets: Bucket[]
+}
+
+export interface CreateBucketRequest {
+  bucket_name: string
+  access_key_id: string
+  secret_access_key: string
+  region: string
+  endpoint?: string
+}
+
+export interface CreateBucketResponse {
+  bucket_id: number
+  bucket_name: string
+}
+
 class ApiService {
   private baseUrl: string
 
@@ -69,8 +97,11 @@ class ApiService {
     })
   }
 
-  async getFiles(path?: string): Promise<FilesResponse> {
-    const url = path ? `/files?path=${encodeURIComponent(path)}` : '/files'
+  async getFiles(bucketId: number, path?: string): Promise<FilesResponse> {
+    let url = `/files?bucket_id=${bucketId}`
+    if (path) {
+      url += `&path=${encodeURIComponent(path)}`
+    }
     const files = this.request<FilesResponse>(url, {
       method: 'GET',
     })
@@ -78,9 +109,25 @@ class ApiService {
     return files
   }
 
-  async downloadFile(filePath: string): Promise<void> {
-    const url = `${this.baseUrl}/files/${encodeURIComponent(filePath)}/download`
+  async getBuckets(): Promise<BucketsResponse> {
+    return this.request<BucketsResponse>('/buckets', {
+      method: 'GET',
+    })
+  }
+
+  async createBucket(data: CreateBucketRequest): Promise<CreateBucketResponse> {
+    return this.request<CreateBucketResponse>('/buckets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async downloadFile(bucketId: number, filePath: string): Promise<void> {
     const token = localStorage.getItem('auth_token')
+    let url = `${this.baseUrl}/files/${encodeURIComponent(filePath)}/download?bucket_id=${bucketId}`
+    if (token) {
+      url += `&token=${encodeURIComponent(token)}`
+    }
 
     const headers: Record<string, string> = {}
     if (token) {
@@ -96,27 +143,52 @@ class ApiService {
       const error: AuthError = await response.json().catch(() => ({}))
       throw new Error(error.error || error.details || 'Ошибка скачивания файла')
     }
-
-    // Получаем имя файла из заголовка Content-Disposition или из пути
     const contentDisposition = response.headers.get('Content-Disposition')
     let fileName = filePath.split('/').pop() || 'file'
     if (contentDisposition) {
-      const fileNameMatch = contentDisposition.match(/filename="(.+)"/)
-      if (fileNameMatch && fileNameMatch[1]) {
-        fileName = fileNameMatch[1]
+      const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+      if (utf8Match && utf8Match[1]) {
+        try {
+          fileName = decodeURIComponent(utf8Match[1])
+        } catch {
+        }
+      } else {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i)
+        if (filenameMatch && filenameMatch[1]) {
+          let extractedName = filenameMatch[1].replace(/^["']|["']$/g, '')
+          try {
+            fileName = decodeURIComponent(extractedName)
+          } catch {
+            fileName = extractedName
+          }
+        }
       }
     }
 
-    // Создаем blob и скачиваем файл
+    try {
+      const decoded = decodeURIComponent(fileName)
+      if (decoded !== fileName) {
+        fileName = decoded
+      }
+    } catch {
+    }
+
     const blob = await response.blob()
     const downloadUrl = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = downloadUrl
     link.download = fileName
+    link.style.display = 'none'
     document.body.appendChild(link)
+    
     link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(downloadUrl)
+    
+    setTimeout(() => {
+      if (link.parentNode) {
+        document.body.removeChild(link)
+      }
+      window.URL.revokeObjectURL(downloadUrl)
+    }, 100)
   }
 }
 

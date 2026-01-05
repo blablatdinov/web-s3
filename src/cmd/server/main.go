@@ -88,9 +88,11 @@ func main() {
 		Immutable: true,
 	})
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+		AllowOrigins:     "*",
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
+		ExposeHeaders:    "Content-Disposition,Content-Type,Content-Length",
+		AllowCredentials: false,
 	}))
 	app.Get("/health-check", handlers.HealthCheckCtor(pgsql, rdb, ctx).Handle)
 	api := app.Group("/api/v1")
@@ -115,8 +117,12 @@ func main() {
 		),
 	)
 	bucketsRepo := repo.PgBucketsRepoCtor(pgsql)
+	userAuthSrv := srv.UserAuthSrvCtor(
+		os.Getenv("SECRET_KEY"),
+		repo.PgUserAuthRepoCtor(pgsql),
+	)
 	protected.Get("/files", handlers.FilesCtor(pgsql, bucketsRepo).Handle)
-	protected.Get("/files/:path/download", handlers.FileDownloadHandlerCtor(bucketsRepo).Handle)
+	protected.Get("/files/:path/download", handlers.FileDownloadHandlerCtor(bucketsRepo, userAuthSrv).Handle)
 	buckets := protected.Group("/buckets")
 	buckets.Get("/", handlers.BucketsListHandlerCtor(bucketsRepo).Handle)
 	buckets.Post("/", handlers.NewBucketHandlerCtor(bucketsRepo).Handle)
