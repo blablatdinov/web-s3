@@ -50,12 +50,11 @@ func (h FileDownloadHandler) Handle(fiberContext *fiber.Ctx) error {
 			"error": "File not found",
 		})
 	}
-	err = result.Body.Close()
-	if err != nil {
-		return fiberContext.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Body unclosed",
-		})
-	}
+	defer func() {
+		if closeErr := result.Body.Close(); closeErr != nil {
+			log.Errorf("Error closing S3 object body: %s", closeErr)
+		}
+	}()
 	fileName := filepath.Base(filePath)
 	if fileName == "." || fileName == "/" {
 		fileName = "file"
