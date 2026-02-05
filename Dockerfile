@@ -20,7 +20,7 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
 # OR OTHER DEALINGS IN THE SOFTWARE.
 
-FROM golang:1.25.6-alpine AS build
+FROM golang:1.25.7-alpine AS build
 
 WORKDIR /src
 COPY src go.mod go.sum /src
